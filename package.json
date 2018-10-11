@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/EricR/sol-function-profiler.git"
   },
-  "author": "Eric Rafaloff, Andres Gonzalez",
+  "author": "Eric Rafaloff, Andres Gonzalez, Alex Tikonoff",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/EricR/sol-function-profiler/issues"
