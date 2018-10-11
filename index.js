@@ -1,87 +1,91 @@
-const parser     = require("solidity-parser");
-const asciiTable = require('ascii-table');
+const fs = require('fs')
+const asciiTable = require('ascii-table')
+const parser = require('solidity-parser-antlr')
 
-if(process.argv.length < 3) {
-  console.log("Error: Missing argument for sol file to scan");
-  process.exit(1);
+if (process.argv.length < 3) {
+  console.log('Error: Missing argument for sol file to scan')
+  process.exit(1)
 }
 
-var target   = process.argv[2],
-    contract = parser.parseFile(target);
+const target = process.argv[2]
+let contract
 
-generateReport(target, contract);
+let table = new asciiTable(target)
+table.setHeading(
+  'Function',
+  'Visibility',
+  'Returns',
+  'Modifiers'
+)
 
-function generateReport(target, contract) {
-  var table = new asciiTable(target);
-  table.setHeading('Contract', 'Function', 'Visibility', 'Constant', 'Returns', 'Modifiers');
+fs.readFile(target, 'utf8', (err, data) => {
+  if (err) throw err
+  try {
+    contract = parser.parse(data)
+    generateReport(contract)
+  } catch (e) {
+    if (e instanceof parser.ParserError) {
+      console.log(e.errors)
+    }
+  }
+})
 
-  contract.body.forEach(function(contract) {
-    if(contract.type == 'ContractStatement') {
-      contract.body.forEach(function(part) {
-        if(part.type == "FunctionDeclaration" && part.is_abstract == false) {
-          var func = parseFunctionPart(contract, part);
-          table.addRow(func.contract, func.function, func.visibility, func.constant, func.returns, func.modifiers);
+function generateReport (contract) {
+  contract.children.forEach(function (part) {
+    if (part.type == 'ContractDefinition') {
+      part.subNodes.forEach(function (subNode) {
+        if (subNode.type == 'FunctionDefinition') {
+          const tbl = parseFunctionPart(subNode)
+          table.addRow(
+            tbl.function,
+            tbl.visibility,
+            tbl.returns,
+            tbl.modifiers
+          )
         }
       })
     }
   })
-  console.log(table.toString());
+  console.log(table.toString())
 }
 
-function parseFunctionPart(contract, part) {
-  var contractName = contract.name,
-      funcName     = part.name || "",
-      params       = [];
+function parseFunctionPart (subNode) {
+  let funcName = subNode.name || ''
+  let params = []
+  let modifiers = []
+  let returns = []
 
-  if(part.params) {
-    part.params.forEach(function(param) {
-      params.push(param.literal.literal);
-    });
-    funcName += "(" + params.join(',') + ")"
+  if (subNode.isConstructor) {
+    funcName = 'constructor'
+  }
+
+  if (subNode.parameters) {
+    subNode.parameters.parameters.forEach(function (param) {
+      params.push(param.name)
+    })
+    funcName += '(' + params.join(',') + ')'
   } else {
-    funcName += "()"
+    funcName += '()'
   }
 
-  // Default is public
-  var visibility = "public"
-      isConstant = false,
-      returns    = [],
-      custom     = [];
-
-  if(part.modifiers) {
-    part.modifiers.forEach(function(mod) {
-      switch(mod.name) {
-        case "public":
-          break;
-        case "private":
-          visibility = "private";
-          break;
-        case "internal":
-          visibility = "internal";
-          break;
-        case "external":
-          visibility = "external";
-          break;
-        case "constant":
-          isConstant = true;
-          break;
-        case "returns":
-          mod.params.forEach(function(param) {
-            returns.push(param.name);
-          });
-          break;
-        default:
-          custom.push(mod.name);
-      }
-    });
+  if (subNode.returnParameters) {
+    subNode.returnParameters.parameters.forEach(function (ret) {
+      returns.push(ret.name || ret.typeName.name)
+    })
   }
+
+  if (subNode.modifiers) {
+    subNode.modifiers.forEach(function (mod) {
+      modifiers.push(mod.name)
+    })
+  }
+
+  const visibility = subNode.visibility || 'default'
 
   return {
-    contract:   contractName,
-    function:   funcName,
+    function: funcName,
     visibility: visibility,
-    constant:   isConstant,
-    returns:    returns,
-    modifiers:  custom
+    returns: returns,
+    modifiers: modifiers
   }
 }

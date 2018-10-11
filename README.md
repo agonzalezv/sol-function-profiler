@@ -2,6 +2,8 @@
 
 A command line tool that generates a human-consumable report listing a contract's functions. This is useful during manual code review to understand what functions are made public, use which modifiers, and so on.
 
+This version ditches the now deprecated [ConsenSys Solidity Parser](https://github.com/ConsenSys/solidity-parser) in favor of [solidity-parser-antlr](https://github.com/federicobond/solidity-parser-antlr).
+
 Usage Example:
 
 ```
