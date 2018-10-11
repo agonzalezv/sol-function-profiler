@@ -1,32 +1,38 @@
 const fs = require('fs')
 const asciiTable = require('ascii-table')
 const parser = require('solidity-parser-antlr')
+const getAllFiles = require('./utils.js').getAllFiles
 
 if (process.argv.length < 3) {
   console.log('Error: Missing argument for .sol file to scan')
   process.exit(1)
 }
 
-const target = process.argv[2]
 let contract
 let parsedContract
 
-try {
-  contract = fs.readFileSync(target, 'utf8')
-} catch (e) {
-  throw e
+function generateReportForDir (dir) {
+  const files = getAllFiles(dir)
+  files.filter(filepath => filepath.split('.').pop() == 'sol')
+    .forEach(filepath => {
+      // console.log(`Report for ${filepath}`)
+      try {
+        contract = fs.readFileSync(filepath, 'utf8')
+        try {
+          parsedContract = parser.parse(contract)
+          generateReport(filepath, parsedContract)
+        } catch (e) {
+          if (e instanceof parser.ParserError) {
+            console.log(e.errors)
+          }
+        }
+      } catch (e) {
+        console.log(e)
+      }
+    })
 }
 
-try {
-  parsedContract = parser.parse(contract)
-  generateReport(parsedContract)
-} catch (e) {
-  if (e instanceof parser.ParserError) {
-    console.log(e.errors)
-  }
-}
-
-function generateReport (contract) {
+function generateReport (filepath, contract) {
   let functionRows = []
   let eventRows = []
   let modifierRows = []
@@ -72,7 +78,7 @@ function generateReport (contract) {
 
   let generalInfoTable = asciiTable.factory({
     heading: [contractInfo],
-    rows: [target]
+    rows: [filepath]
   })
 
   let functionTable = asciiTable.factory({
@@ -97,10 +103,18 @@ function generateReport (contract) {
   })
 
   console.log(generalInfoTable.toString())
-  console.log(importTable.toString())
-  console.log(functionTable.toString())
-  console.log(modifierTable.toString())
-  console.log(eventTable.toString())
+  if (importRows.length > 0) {
+    console.log(importTable.toString())
+  }
+  if (functionRows.length > 0) {
+    console.log(functionTable.toString())
+  }
+  if (modifierRows.length > 0) {
+    console.log(modifierTable.toString())
+  }
+  if (eventRows.length > 0) {
+    console.log(eventTable.toString())
+  }
 }
 
 // builds function report table
@@ -182,4 +196,9 @@ function parseModifier (subNode) {
 function parseImport (subNode) {
   let funcName = subNode.path || ''
   return funcName
+}
+
+module.exports = {
+  generateReport,
+  generateReportForDir
 }

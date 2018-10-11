@@ -6,19 +6,23 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": {
+    "sol-function-profiler": "./cli.js"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EricR/sol-function-profiler.git"
+    "url": "git+https://github.com/agonzalezv/sol-function-profiler.git"
   },
   "author": "Eric Rafaloff, Andres Gonzalez",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/EricR/sol-function-profiler/issues"
+    "url": "https://github.com/agonzalezv/sol-function-profiler/issues"
   },
-  "homepage": "https://github.com/EricR/sol-function-profiler#readme",
+  "homepage": "https://github.com/agonzalezv/sol-function-profiler#readme",
   "dependencies": {
     "ascii-table": "0.0.9",
     "prettier": "^1.14.3",
-    "solidity-parser-antlr": "^0.3.2"
+    "solidity-parser-antlr": "^0.3.2",
+    "yargs": "^12.0.2"
   }
 }
