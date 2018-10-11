@@ -1,4 +1,4 @@
-# Solidity Function Profiler
+# (WIP) Solidity Function Profiler
 
 A command line tool that generates a human-consumable report listing a contract's functions. This is useful during manual code review to understand what functions are made public, use which modifiers, and so on.
 
@@ -9,7 +9,15 @@ Usage Example:
 ```
 $ npm install
 ...
-$ node index.js ~/contracts/mytoken.sol
+
+$ chmod +x cli.js
+
+$ ./cli.js ~/contracts/mytoken.sol
+
+You can also give a directory as an argument using the --dir flag, this will generate a report on all files ending in .sol the directory or its subdirectories.
+
+$ ./cli.js --dir ~/contracts
+
 .--------------------------------------------------------------------------------------------------------.
 |                                        ~/contracts/mytoken.sol                                         |
 |--------------------------------------------------------------------------------------------------------|
@@ -22,3 +30,5 @@ $ node index.js ~/contracts/mytoken.sol
 | MyToken       | kill()                        | internal   | false    |           |                    |
 '--------------------------------------------------------------------------------------------------------'
 ```
+
+multiple dir support based on [this repo](https://github.com/maurelian/sol-function-profiler)
