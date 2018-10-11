@@ -8,21 +8,11 @@ if (process.argv.length < 3) {
 }
 
 const target = process.argv[2]
-let contract
-
-let table = new asciiTable(target)
-table.setHeading(
-  'Function',
-  'Visibility',
-  'Returns',
-  'Modifiers'
-)
 
 fs.readFile(target, 'utf8', (err, data) => {
   if (err) throw err
   try {
-    contract = parser.parse(data)
-    generateReport(contract)
+    generateReport(parser.parse(data))
   } catch (e) {
     if (e instanceof parser.ParserError) {
       console.log(e.errors)
@@ -31,61 +21,49 @@ fs.readFile(target, 'utf8', (err, data) => {
 })
 
 function generateReport (contract) {
-  contract.children.forEach(function (part) {
-    if (part.type == 'ContractDefinition') {
-      part.subNodes.forEach(function (subNode) {
-        if (subNode.type == 'FunctionDefinition') {
-          const tbl = parseFunctionPart(subNode)
-          table.addRow(
-            tbl.function,
-            tbl.visibility,
-            tbl.returns,
-            tbl.modifiers
-          )
-        }
-      })
-    }
+  const doc = contract.children
+    .filter(child => child.type === 'ContractDefinition')
+    .map(contract => ({
+      name: contract.name,
+      functions: contract.subNodes
+      .filter(node => node.type === 'FunctionDefinition')
+      .map(func => parseFunction(func))
+    }))
+
+  doc.map(contract => {
+    const table = new asciiTable(target + ": " + contract.name)
+
+    table.setHeading(
+      'Function',
+      'Visibility',
+      'Mutability',
+      'Modifiers',
+      'Returns')
+
+    contract.functions.map(
+      func => table.addRow(
+        `${func.name}(${func.params})`,
+        func.visibility,
+        func.mutability,
+        func.modifiers,
+        func.returns
+      )
+    )
+    console.log(table.toString() + '\n')
   })
-  console.log(table.toString())
+
 }
 
-function parseFunctionPart (subNode) {
-  let funcName = subNode.name || ''
-  let params = []
-  let modifiers = []
-  let returns = []
-
-  if (subNode.isConstructor) {
-    funcName = 'constructor'
-  }
-
-  if (subNode.parameters) {
-    subNode.parameters.parameters.forEach(function (param) {
-      params.push(param.name)
-    })
-    funcName += '(' + params.join(',') + ')'
-  } else {
-    funcName += '()'
-  }
-
-  if (subNode.returnParameters) {
-    subNode.returnParameters.parameters.forEach(function (ret) {
-      returns.push(ret.name || ret.typeName.name)
-    })
-  }
-
-  if (subNode.modifiers) {
-    subNode.modifiers.forEach(function (mod) {
-      modifiers.push(mod.name)
-    })
-  }
-
-  const visibility = subNode.visibility || 'default'
-
+function parseFunction (node) {
   return {
-    function: funcName,
-    visibility: visibility,
-    returns: returns,
-    modifiers: modifiers
+    name: node.isConstructor ? 'constructor' : node.name || '',
+    params: node.parameters.parameters
+      .map(({ typeName }) => typeName.name || typeName.baseTypeName.namePath + "[]") || [],
+    visibility: node.visibility || '',
+    modifiers: node.modifiers
+      .map(modifier => modifier.name) || [],
+    mutability: node.stateMutability || '',
+    returns: node.returnParameters && node.returnParameters.parameters
+      .map(({ typeName }) => typeName.name || typeName.baseTypeName.name + "[]") || []
   }
 }
