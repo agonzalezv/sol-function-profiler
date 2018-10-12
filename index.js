@@ -3,42 +3,39 @@ const asciiTable = require('ascii-table')
 const parser = require('solidity-parser-antlr')
 const getAllFiles = require('./utils.js').getAllFiles
 
-if (process.argv.length < 3) {
-  console.log('Error: Missing argument for .sol file to scan')
-  process.exit(1)
-}
-
 let contract
 let parsedContract
 
 function generateReportForDir (dir) {
   const files = getAllFiles(dir)
-  files.filter(filepath => filepath.split('.').pop() == 'sol')
+  files
+    .filter(filepath => filepath.split('.').pop() == 'sol')
     .forEach(filepath => {
       // console.log(`Report for ${filepath}`)
       try {
         contract = fs.readFileSync(filepath, 'utf8')
-        try {
-          parsedContract = parser.parse(contract)
-          generateReport(filepath, parsedContract)
-        } catch (e) {
-          if (e instanceof parser.ParserError) {
-            console.log(e.errors)
-          }
-        }
+        generateReport(filepath, contract)
       } catch (e) {
-        console.log(e)
+        console.log(`Error reading contract ${contract} :`, e)
       }
     })
 }
 
 function generateReport (filepath, contract) {
+  try {
+    parsedContract = parser.parse(contract)
+  } catch (e) {
+    if (e instanceof parser.ParserError) {
+      console.log(e.errors)
+    }
+  }
+
   let functionRows = []
   let eventRows = []
   let modifierRows = []
   let importRows = []
   let contractInfo = ''
-  for (const node of contract.children) {
+  for (const node of parsedContract.children) {
     const type = node.type
     switch (type) {
       // Contract solidity version
