@@ -1,8 +1,14 @@
 #! /usr/bin/env node
 
 const fs = require('fs')
+const path = require('path')
 const profiler = require('./index.js')
 const argv = require('yargs').argv
+const utils = require('./utils')
+
+// recreate reporting output folder
+const dirname = 'output'
+utils.recreateFolder(dirname)
 
 if (argv.dir) {
   // is a directory?

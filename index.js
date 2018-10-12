@@ -1,17 +1,18 @@
 const fs = require('fs')
+const path = require('path')
 const asciiTable = require('ascii-table')
 const parser = require('solidity-parser-antlr')
-const getAllFiles = require('./utils.js').getAllFiles
+const utils = require('./utils.js')
+const report = require('./parsers')
 
 let contract
 let parsedContract
 
 function generateReportForDir (dir) {
-  const files = getAllFiles(dir)
+  const files = utils.getAllFiles(dir)
   files
-    .filter(filepath => filepath.split('.').pop() == 'sol')
+    .filter(filepath => filepath.split('.').pop() === 'sol')
     .forEach(filepath => {
-      // console.log(`Report for ${filepath}`)
       try {
         contract = fs.readFileSync(filepath, 'utf8')
         generateReport(filepath, contract)
@@ -22,6 +23,11 @@ function generateReportForDir (dir) {
 }
 
 function generateReport (filepath, contract) {
+  // write output to file
+  let filename = path.basename(filepath)
+  let reportName = `./output/${filename}.md`
+  let writeStream = fs.createWriteStream(reportName)
+
   try {
     parsedContract = parser.parse(contract)
   } catch (e) {
@@ -53,22 +59,22 @@ function generateReport (filepath, contract) {
           switch (subNode.type) {
             // Contract Functions
             case 'FunctionDefinition':
-              functionRows.push(parseFunction(subNode))
+              functionRows.push(report.parseFunction(subNode))
               break
             // Contract Events
             case 'EventDefinition':
-              eventRows.push(parseEvent(subNode))
+              eventRows.push(report.parseEvent(subNode))
               break
             // Contract Modifiers
             case 'ModifierDefinition':
-              modifierRows.push(parseModifier(subNode))
+              modifierRows.push(report.parseModifier(subNode))
               break
           }
         }
         break
       // Contract Imports
       case 'ImportDirective':
-        importRows.push(parseImport(node))
+        importRows.push(report.parseImport(node))
         break
     }
   }
@@ -99,100 +105,36 @@ function generateReport (filepath, contract) {
     rows: importRows
   })
 
-  console.log(generalInfoTable.toString())
+  // very fancy markdown ;)
+  writeStream.write('```' + '\r\n')
+
+  writeStream.write(generalInfoTable.toString() + '\r\n')
+
   if (importRows.length > 0) {
-    console.log(importTable.toString())
+    writeStream.write(importTable.toString() + '\r\n')
   }
+
   if (functionRows.length > 0) {
-    console.log(functionTable.toString())
+    writeStream.write(functionTable.toString() + '\r\n')
   }
+
   if (modifierRows.length > 0) {
-    console.log(modifierTable.toString())
+    writeStream.write(modifierTable.toString() + '\r\n')
   }
+
   if (eventRows.length > 0) {
-    console.log(eventTable.toString())
-  }
-}
-
-// builds function report table
-function parseFunction (subNode) {
-  let params
-  let returns
-  let modifiers
-  let funcName = subNode.name || ''
-  // function visibility (e.g public, external...)
-  const visibility = subNode.visibility || 'default'
-
-  if (subNode.isConstructor) {
-    funcName += 'constructor'
-  }
-  // add parameters to the function name
-  if (subNode.parameters && subNode.parameters.parameters) {
-    params = subNode.parameters.parameters.map(function (param) {
-      return param.name
-    })
-    funcName += '(' + params.join(', ') + ') '
-  } else {
-    funcName += '() '
+    writeStream.write(eventTable.toString() + '\r\n')
   }
 
-  // add payable to function name
-  funcName += subNode.stateMutability || ''
+  writeStream.write('```' + '\r\n')
 
-  // adds returns
-  if (subNode.returnParameters && subNode.returnParameters.parameters) {
-    // parameter name of parameter type if unnamed (e.g boolean)
-    returns = subNode.returnParameters.parameters.map(function (ret) {
-      return ret.name || ret.typeName.name
-    })
-  }
+  // the finish event is emitted when all data has been flushed from the stream
+  writeStream.on('finish', function () {
+    console.log(`written ${reportName}`)
+  })
 
-  // add modifiers
-  if (subNode.modifiers) {
-    modifiers = subNode.modifiers.map(function (mod) {
-      return mod.name
-    })
-  }
-
-  return [funcName, visibility, returns, modifiers]
-}
-
-// builds event report table
-function parseEvent (subNode) {
-  let funcName = subNode.name || ''
-  let params
-
-  // add parameters to the function name
-  if (subNode.parameters && subNode.parameters.parameters) {
-    params = subNode.parameters.parameters.map(function (param) {
-      return param.name
-    })
-    funcName += '(' + params.join(', ') + ') '
-  } else {
-    funcName += '() '
-  }
-  return funcName
-}
-
-function parseModifier (subNode) {
-  let funcName = subNode.name || ''
-  let params
-
-  // add parameters to the function name
-  if (subNode.parameters && subNode.parameters.parameters) {
-    params = subNode.parameters.parameters.map(function (param) {
-      return param.name
-    })
-    funcName += '(' + params.join(', ') + ') '
-  } else {
-    funcName += '() '
-  }
-  return funcName
-}
-
-function parseImport (subNode) {
-  let funcName = subNode.path || ''
-  return funcName
+  // close the stream
+  writeStream.end()
 }
 
 module.exports = {
